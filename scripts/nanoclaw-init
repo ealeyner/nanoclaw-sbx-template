@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# Clone NanoClaw into the workspace and install deps.
+# Run inside the sandbox after: sbx run -t nanoclaw:vX shell <workspace>
+set -euo pipefail
+
+WORKSPACE="${1:-$PWD}"
+BRANCH="${NANOCLAW_BRANCH:-sandbox-ready}"
+REPO="${NANOCLAW_REPO:-https://github.com/ealeyner/nanoclaw.git}"
+
+if [ ! -d "$WORKSPACE/nanoclaw" ]; then
+  # virtiofs corrupts pack files during clone — clone to /tmp then mv
+  rm -rf /tmp/nanoclaw-clone
+
+  # Try the sandbox-ready branch first; fall back to upstream main
+  if git clone --depth=1 -b "$BRANCH" "$REPO" /tmp/nanoclaw-clone 2>/dev/null; then
+    echo "Cloned branch '$BRANCH' from $REPO"
+  else
+    echo "Branch '$BRANCH' not found on $REPO — falling back to qwibitai/nanoclaw main"
+    git clone --depth=1 https://github.com/qwibitai/nanoclaw.git /tmp/nanoclaw-clone
+  fi
+
+  mv /tmp/nanoclaw-clone "$WORKSPACE/nanoclaw"
+fi
+
+cd "$WORKSPACE/nanoclaw"
+pnpm install --prefer-offline
+echo
+echo "✓ NanoClaw cloned to $WORKSPACE/nanoclaw"
+echo "  Next: cd nanoclaw && bash container/build.sh"
+echo "  Then: configure .env and run \`pnpm start\` — see docs/docker-sandboxes.md Step 6."

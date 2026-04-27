@@ -1,0 +1,15 @@
+# Build output
+out/
+
+# Temp files
+*.tar
+*.tmp
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*~
+
+# macOS
+.DS_Store
