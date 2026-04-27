@@ -1,0 +1,71 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-template:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install docker-sbx CLI
+        id: install-sbx
+        continue-on-error: true
+        run: |
+          # Attempt to install the latest docker-sbx .deb for ubuntu24.04
+          DEB_URL=$(curl -fsSL https://api.github.com/repos/docker/sbx-releases/releases/latest \
+            | jq -r '.assets[] | select(.name | contains("ubuntu24.04")) | select(.name | endswith(".deb")) | .browser_download_url' \
+            | head -1)
+          if [ -z "$DEB_URL" ]; then
+            echo "::warning::Could not find ubuntu24.04 .deb in docker/sbx-releases. Skipping build."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            curl -fsSL -o /tmp/docker-sbx.deb "$DEB_URL"
+            sudo dpkg -i /tmp/docker-sbx.deb
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Authenticate sbx
+        id: sbx-login
+        continue-on-error: true
+        if: steps.install-sbx.outputs.skip != 'true'
+        run: |
+          # sbx login requires interactive Docker credentials — expected to fail in CI.
+          # Local builds are the supported path; see README.
+          echo "::warning::sbx login requires Docker credentials — skipping build in CI."
+          echo "skip=true" >> "$GITHUB_OUTPUT"
+
+      - name: Build template
+        if: |
+          steps.install-sbx.outputs.skip != 'true' &&
+          steps.sbx-login.outputs.skip != 'true'
+        run: |
+          chmod +x ./build-template.sh
+          ./build-template.sh "nanoclaw:${{ github.ref_name }}"
+
+      - name: Upload release asset
+        if: |
+          steps.install-sbx.outputs.skip != 'true' &&
+          steps.sbx-login.outputs.skip != 'true' &&
+          hashFiles('out/*.tar') != ''
+        uses: softprops/action-gh-release@v2
+        with:
+          files: out/*.tar
+          body: |
+            Docker Sandboxes template with NanoClaw prerequisites baked in.
+
+            Install: `sbx template load nanoclaw_${{ github.ref_name }}.tar`
+            Then: `sbx run -t nanoclaw:${{ github.ref_name }} shell ~/proj && nanoclaw-init`
+
+      - name: Note about CI limitation
+        if: always()
+        run: |
+          echo "NOTE: Template builds require 'sbx login' with Docker credentials."
+          echo "Local builds are the supported path. See README for instructions."
