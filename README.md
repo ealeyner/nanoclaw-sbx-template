@@ -52,7 +52,17 @@ NANOCLAW_BRANCH=main nanoclaw-init ~/proj
 
 ## CI / GitHub Actions
 
-The included `release.yml` workflow fires on tag push and attempts to build and upload the template tarball as a release asset. **`sbx login` requires Docker credentials that aren't available in GitHub-hosted runners**, so the build step is skipped in CI — local builds are the supported path. The workflow is best-effort and included as a future enhancement.
+The included `docs/release.yml.example` workflow fires on tag push and attempts to build and upload the template tarball as a release asset. **`sbx login` requires Docker credentials that aren't available in GitHub-hosted runners**, so the build step is skipped in CI — local builds are the supported path. The workflow is best-effort and included as a future enhancement.
+
+To activate it, copy it to `.github/workflows/release.yml` in your own fork (requires a GitHub token with `workflow` scope):
+
+```bash
+mkdir -p .github/workflows
+cp docs/release.yml.example .github/workflows/release.yml
+git add .github/workflows/release.yml
+git commit -m "Enable CI workflow"
+git push
+```
 
 ## Further reading
 
